@@ -3,7 +3,6 @@ name: Build Push and Deploy
 on:
   push:
     branches: [ "main" ]
-  workflow_dispatch:
 
 jobs:
   build-push-deploy:
@@ -22,18 +21,16 @@ jobs:
       - name: Build and push API image
         uses: docker/build-push-action@v6
         with:
-          context: ./
-          file: ./Dockerfile.api
+          context: ./exam-api
           push: true
-          tags: davutdoc/docfinal-api:latest
+          tags: ${{ secrets.DOCKERHUB_USERNAME }}/docfinal-api:latest
 
-      - name: Build and push Frontend image
+      - name: Build and push UI image
         uses: docker/build-push-action@v6
         with:
-          context: ./yourprime-ui
-          file: ./yourprime-ui/Dockerfile
+          context: ./exam-ui
           push: true
-          tags: davutdoc/docfinal-ui:latest
+          tags: ${{ secrets.DOCKERHUB_USERNAME }}/docfinal-ui:latest
 
       - name: Copy compose file to AWS VM
         uses: appleboy/scp-action@v0.1.7
@@ -42,7 +39,7 @@ jobs:
           username: ${{ secrets.AWS_USER }}
           key: ${{ secrets.AWS_SSH_KEY }}
           source: "docker-compose.prod.yml"
-          target: "/home/${{ secrets.AWS_USER }}/docfinal"
+          target: "/home/ubuntu/docfinal"
 
       - name: Deploy on AWS VM
         uses: appleboy/ssh-action@v1.0.3
@@ -51,7 +48,11 @@ jobs:
           username: ${{ secrets.AWS_USER }}
           key: ${{ secrets.AWS_SSH_KEY }}
           script: |
-            cd /home/${{ secrets.AWS_USER }}/docfinal
-            docker compose -f docker-compose.prod.yml pull
-            docker compose -f docker-compose.prod.yml up -d
-            docker image prune -f
+            sudo apt update
+            sudo apt install -y docker.io docker-compose-plugin
+            sudo systemctl enable docker
+            sudo systemctl start docker
+            sudo docker login -u ${{ secrets.DOCKERHUB_USERNAME }} -p ${{ secrets.DOCKERHUB_TOKEN }}
+            cd /home/ubuntu/docfinal
+            sudo DOCKERHUB_USERNAME=${{ secrets.DOCKERHUB_USERNAME }} docker compose -f docker-compose.prod.yml pull
+            sudo DOCKERHUB_USERNAME=${{ secrets.DOCKERHUB_USERNAME }} docker compose -f docker-compose.prod.yml up -d
