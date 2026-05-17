@@ -9,50 +9,58 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Login to Docker Hub
+      - name: Login DockerHub
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Build and push API image
+      - name: Build API
         uses: docker/build-push-action@v6
         with:
           context: ./exam-api
           push: true
           tags: ${{ secrets.DOCKERHUB_USERNAME }}/docfinal-api:latest
 
-      - name: Build and push UI image
+      - name: Build UI
         uses: docker/build-push-action@v6
         with:
           context: ./exam-ui
           push: true
           tags: ${{ secrets.DOCKERHUB_USERNAME }}/docfinal-ui:latest
 
-      - name: Copy compose file to AWS VM
-        uses: appleboy/scp-action@v0.1.7
-        with:
-          host: ${{ secrets.AWS_HOST }}
-          username: ${{ secrets.AWS_USER }}
-          key: ${{ secrets.AWS_SSH_KEY }}
-          source: "docker-compose.prod.yml"
-          target: "/home/ubuntu/docfinal"
-
-      - name: Deploy on AWS VM
+      - name: Deploy AWS
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.AWS_HOST }}
           username: ${{ secrets.AWS_USER }}
           key: ${{ secrets.AWS_SSH_KEY }}
           script: |
-            sudo apt update
-            sudo apt install -y docker.io docker-compose-plugin
-            sudo systemctl enable docker
-            sudo systemctl start docker
+            curl -fsSL https://get.docker.com | sh
+
+            sudo usermod -aG docker ubuntu
+
+            mkdir -p /home/ubuntu/docfinal
+
+            cat > /home/ubuntu/docfinal/docker-compose.yml <<EOF
+            services:
+              api:
+                image: ${{ secrets.DOCKERHUB_USERNAME }}/docfinal-api:latest
+                ports:
+                  - "8080:8080"
+
+              ui:
+                image: ${{ secrets.DOCKERHUB_USERNAME }}/docfinal-ui:latest
+                ports:
+                  - "80:80"
+            EOF
+
             sudo docker login -u ${{ secrets.DOCKERHUB_USERNAME }} -p ${{ secrets.DOCKERHUB_TOKEN }}
+
             cd /home/ubuntu/docfinal
-            sudo DOCKERHUB_USERNAME=${{ secrets.DOCKERHUB_USERNAME }} docker compose -f docker-compose.prod.yml pull
-            sudo DOCKERHUB_USERNAME=${{ secrets.DOCKERHUB_USERNAME }} docker compose -f docker-compose.prod.yml up -d
+
+            sudo docker compose pull
+
+            sudo docker compose up -d
