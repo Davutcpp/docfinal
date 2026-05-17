@@ -23,7 +23,7 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: ./CryptoTracker
-          file: ./CryptoTracker/CryptoTracker.Api/Dockerfile
+          file: ./CryptoTracker/Dockerfile
           push: true
           tags: davutdoc/docfinal-api:latest
 
