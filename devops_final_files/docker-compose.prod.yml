@@ -1,0 +1,47 @@
+services:
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: cryptotracker-db
+    environment:
+      ACCEPT_EULA: "Y"
+      SA_PASSWORD: "YourStrong@Passw0rd123"
+    volumes:
+      - sqlserver_data:/var/opt/mssql
+    networks:
+      - cryptotracker-net
+    restart: always
+
+  api:
+    image: davutdoc/docfinal-api:latest
+    container_name: cryptotracker-api
+    depends_on:
+      - sqlserver
+    environment:
+      ASPNETCORE_URLS: "http://+:8080"
+      ConnectionStrings__DefaultConnection: "Server=sqlserver,1433;Database=CryptoTrackerDb;User Id=sa;Password=YourStrong@Passw0rd123;TrustServerCertificate=True;Encrypt=False;"
+      Jwt__Key: "SUPER_SECRET_KEY_123456789_SUPER_SECRET_KEY_123456789"
+      Jwt__Issuer: "CryptoTracker"
+      Jwt__Audience: "CryptoTrackerUsers"
+    ports:
+      - "8080:8080"
+    networks:
+      - cryptotracker-net
+    restart: always
+
+  frontend:
+    image: davutdoc/docfinal-ui:latest
+    container_name: cryptotracker-ui
+    depends_on:
+      - api
+    ports:
+      - "80:80"
+    networks:
+      - cryptotracker-net
+    restart: always
+
+volumes:
+  sqlserver_data:
+
+networks:
+  cryptotracker-net:
+    driver: bridge
