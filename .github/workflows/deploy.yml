@@ -27,7 +27,7 @@ jobs:
       - name: Build UI
         uses: docker/build-push-action@v6
         with:
-          context: ./yourprime-ui
+          context: ./exam-ui
           push: true
           tags: ${{ secrets.DOCKERHUB_USERNAME }}/docfinal-ui:latest
 
